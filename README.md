@@ -10,3 +10,6 @@ appointment scheduling, real-time monitoring of patient vitals (simulated), and 
 health using machine learning algorithms. This project will require advanced system analysis, complex
 design patterns, and the implementation of various subsystems, making it more challenging than typical
 projects like LMS.
+
+
+The Project will be made using flutter for developing both mobile and web interface and esp32 microcontroller to send data and display it for idk why
