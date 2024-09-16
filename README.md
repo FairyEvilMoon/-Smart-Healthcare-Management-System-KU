@@ -13,3 +13,5 @@ projects like LMS.
 
 
 The Project will be made using flutter for developing both mobile and web interface and esp32 microcontroller to send data and display it for idk why
+
+[The Project.pdf](https://github.com/user-attachments/files/17010741/The.Project.pdf)
