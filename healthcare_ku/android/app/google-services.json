@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "837669727720",
+    "project_id": "healthcare-system-ku-5a689",
+    "storage_bucket": "healthcare-system-ku-5a689.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:837669727720:android:150801b4b42bb8a5a3085d",
+        "android_client_info": {
+          "package_name": "com.majid.healthcare"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD1EGdPZmtJa-MNeHzniiIEK3SR1JmxG44"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
