@@ -1,125 +1,200 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:healthcare_ku/models/user_model.dart';
+import 'package:healthcare_ku/models/admin_model.dart'; // Add this import
+import 'package:healthcare_ku/models/doctor_model.dart'; // Add this import
+import 'package:healthcare_ku/models/patient_model.dart'; // Add this import
+import 'firebase_options.dart';
+import 'middleware/doctor_verification_middleware.dart';
+import 'screens/auth/login_screen.dart';
+import 'screens/auth/signup_screen.dart';
+import 'screens/dashboard/patient_dashboard.dart';
+import 'screens/dashboard/doctor_dashboard.dart';
+import 'screens/dashboard/admin_dashboard.dart';
+import 'services/firebase_service.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final FirebaseService _firebaseService = FirebaseService();
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Healthcare App',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        primarySwatch: Colors.blue,
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return _buildLoadingScreen();
+          }
+
+          if (snapshot.hasData) {
+            return FutureBuilder(
+              future: _firebaseService.getUserData(snapshot.data!.uid),
+              builder: (context, userSnapshot) {
+                if (userSnapshot.connectionState == ConnectionState.waiting) {
+                  return _buildLoadingScreen();
+                }
+
+                if (userSnapshot.hasData) {
+                  final userData = userSnapshot.data!;
+                  return _buildUserDashboard(userData);
+                }
+
+                return LoginScreen();
+              },
+            );
+          }
+
+          return LoginScreen();
+        },
+      ),
+      routes: {
+        '/login': (context) => LoginScreen(),
+        '/signup': (context) => SignupScreen(),
+        '/patient-dashboard': (context) {
+          final user = FirebaseAuth.instance.currentUser;
+          if (user == null) return LoginScreen();
+
+          return FutureBuilder<UserModel?>(
+            future: _firebaseService.getUserData(user.uid),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return _buildLoadingScreen();
+              }
+
+              if (snapshot.hasData && snapshot.data?.role == 'patient') {
+                final patientData = PatientModel(
+                  uid: snapshot.data!.uid,
+                  email: snapshot.data!.email,
+                  name: snapshot.data!.name,
+                  phoneNumber: snapshot.data!.phoneNumber,
+                  profileImageUrl: snapshot.data!.profileImageUrl,
+                );
+                return PatientDashboard(patient: patientData);
+              }
+
+              return LoginScreen();
+            },
+          );
+        },
+        '/doctor-dashboard': (context) => _wrapDoctorDashboard(context),
+        '/admin-dashboard': (context) => _wrapAdminDashboard(context),
+      },
     );
   }
-}
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+  Widget _buildLoadingScreen() {
+    return Scaffold(
+      body: Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+  Widget _buildUserDashboard(UserModel userData) {
+    switch (userData.role) {
+      case 'patient':
+        final patientData = PatientModel(
+          uid: userData.uid,
+          email: userData.email,
+          name: userData.name,
+          phoneNumber: userData.phoneNumber,
+          profileImageUrl: userData.profileImageUrl,
+        );
+        return PatientDashboard(patient: patientData);
+      case 'doctor':
+        final doctorData = DoctorModel(
+          uid: userData.uid,
+          email: userData.email,
+          name: userData.name,
+          phoneNumber: userData.phoneNumber,
+          profileImageUrl: userData.profileImageUrl,
+        );
+        return DoctorVerificationMiddleware(
+          uid: userData.uid,
+          child: DoctorDashboard(doctor: doctorData),
+        );
+      case 'admin':
+        final adminData = AdminModel(
+          uid: userData.uid,
+          email: userData.email,
+          name: userData.name,
+          phoneNumber: userData.phoneNumber,
+          profileImageUrl: userData.profileImageUrl,
+        );
+        return AdminDashboard(admin: adminData);
+      default:
+        return LoginScreen();
+    }
+  }
+
+  Widget _wrapDoctorDashboard(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return LoginScreen();
+
+    return FutureBuilder<UserModel?>(
+      future: _firebaseService.getUserData(user.uid),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return _buildLoadingScreen();
+        }
+
+        if (snapshot.hasData && snapshot.data?.role == 'doctor') {
+          final doctorData = DoctorModel(
+            uid: snapshot.data!.uid,
+            email: snapshot.data!.email,
+            name: snapshot.data!.name,
+            phoneNumber: snapshot.data!.phoneNumber,
+            profileImageUrl: snapshot.data!.profileImageUrl,
+          );
+          return DoctorVerificationMiddleware(
+            uid: user.uid,
+            child: DoctorDashboard(doctor: doctorData),
+          );
+        }
+
+        return LoginScreen();
+      },
+    );
+  }
+
+  Widget _wrapAdminDashboard(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return LoginScreen();
+
+    return FutureBuilder<UserModel?>(
+      future: _firebaseService.getUserData(user.uid),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return _buildLoadingScreen();
+        }
+
+        if (snapshot.hasData && snapshot.data?.role == 'admin') {
+          final adminData = AdminModel(
+            uid: snapshot.data!.uid,
+            email: snapshot.data!.email,
+            name: snapshot.data!.name,
+            phoneNumber: snapshot.data!.phoneNumber,
+            profileImageUrl: snapshot.data!.profileImageUrl,
+          );
+          return AdminDashboard(admin: adminData);
+        }
+
+        return LoginScreen();
+      },
     );
   }
 }
