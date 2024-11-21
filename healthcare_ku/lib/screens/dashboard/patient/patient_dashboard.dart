@@ -5,7 +5,7 @@ import 'package:healthcare_ku/models/appointment_model.dart';
 import 'package:healthcare_ku/models/health_metric.dart';
 import 'package:healthcare_ku/screens/dashboard/patient/appointments/book_appointment_screen.dart';
 import 'package:healthcare_ku/screens/dashboard/patient/appointments/upcoming_appointments_screen.dart';
-import 'package:healthcare_ku/screens/health/view_health_metrics_screen.dart';
+import 'package:healthcare_ku/screens/dashboard/patient/health/view_health_metrics_screen.dart';
 import 'package:healthcare_ku/services/appointment_service.dart';
 import 'package:intl/intl.dart';
 import '../../../models/patient_model.dart';
@@ -118,10 +118,26 @@ class _PatientDashboardState extends State<PatientDashboard> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildStatusItem(
-                  'Next Appointment',
-                  'Today, 2:30 PM',
-                  Icons.calendar_today,
+                StreamBuilder<List<AppointmentModel>>(
+                  stream: AppointmentService()
+                      .getUpcomingAppointments(widget.patient.uid),
+                  builder: (context, snapshot) {
+                    String appointmentText = 'No upcoming';
+                    String timeText = 'appointments';
+
+                    if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+                      final nextAppointment = snapshot.data!.first;
+                      appointmentText = 'Next Appointment';
+                      timeText = DateFormat('MMM d, h:mm a')
+                          .format(nextAppointment.dateTime);
+                    }
+
+                    return _buildStatusItem(
+                      appointmentText,
+                      timeText,
+                      Icons.calendar_today,
+                    );
+                  },
                 ),
                 _buildStatusItem(
                   'Medications',
