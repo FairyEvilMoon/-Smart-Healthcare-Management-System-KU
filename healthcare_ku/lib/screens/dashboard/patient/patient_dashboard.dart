@@ -1,8 +1,11 @@
 // lib/screens/dashboard/patient_dashboard.dart
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:healthcare_ku/models/appointment_model.dart';
+import 'package:healthcare_ku/models/health_metric.dart';
 import 'package:healthcare_ku/screens/dashboard/patient/appointments/book_appointment_screen.dart';
 import 'package:healthcare_ku/screens/dashboard/patient/appointments/upcoming_appointments_screen.dart';
+import 'package:healthcare_ku/screens/health/view_health_metrics_screen.dart';
 import 'package:healthcare_ku/services/appointment_service.dart';
 import 'package:intl/intl.dart';
 import '../../../models/patient_model.dart';
@@ -182,7 +185,10 @@ class _PatientDashboardState extends State<PatientDashboard> {
         'icon': Icons.favorite,
         'label': 'Health Metrics',
         'onTap': () {
-          Navigator.pushNamed(context, '/health-metrics');
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => ViewHealthMetricsScreen()),
+          );
         },
       },
       {
@@ -332,52 +338,73 @@ class _PatientDashboardState extends State<PatientDashboard> {
       elevation: 2,
       child: Padding(
         padding: EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: FutureBuilder<List<HealthMetric>>(
+          future: FirebaseService()
+              .getPatientHealthMetrics(FirebaseAuth.instance.currentUser!.uid),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Center(child: CircularProgressIndicator());
+            }
+
+            if (snapshot.hasError) {
+              return Text('Error loading metrics: ${snapshot.error}');
+            }
+
+            final latestMetric =
+                snapshot.data?.isNotEmpty == true ? snapshot.data!.first : null;
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Health Metrics',
-                  style: Theme.of(context).textTheme.titleLarge,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Health Metrics',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => ViewHealthMetricsScreen()),
+                      ),
+                      child: Text('View All'),
+                    ),
+                  ],
                 ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.pushNamed(context, '/health-metrics');
-                  },
-                  child: Text('View All'),
+                SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildMetricCard(
+                      'Heart Rate',
+                      latestMetric?.heartRate.toString() ?? '-',
+                      'bpm',
+                      Icons.favorite,
+                      Colors.red,
+                    ),
+                    _buildMetricCard(
+                      'Blood Pressure',
+                      latestMetric != null
+                          ? '${latestMetric.systolicPressure}/${latestMetric.diastolicPressure}'
+                          : '-',
+                      'mmHg',
+                      Icons.speed,
+                      Colors.blue,
+                    ),
+                    _buildMetricCard(
+                      'Weight',
+                      latestMetric?.weight.toString() ?? '-',
+                      'kg',
+                      Icons.monitor_weight,
+                      Colors.green,
+                    ),
+                  ],
                 ),
               ],
-            ),
-            SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildMetricCard(
-                  'Heart Rate',
-                  '72',
-                  'bpm',
-                  Icons.favorite,
-                  Colors.red,
-                ),
-                _buildMetricCard(
-                  'Blood Pressure',
-                  '120/80',
-                  'mmHg',
-                  Icons.speed,
-                  Colors.blue,
-                ),
-                _buildMetricCard(
-                  'Weight',
-                  '70',
-                  'kg',
-                  Icons.monitor_weight,
-                  Colors.green,
-                ),
-              ],
-            ),
-          ],
+            );
+          },
         ),
       ),
     );

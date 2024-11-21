@@ -3,12 +3,14 @@ class HealthMetric {
   final double heartRate;
   final double systolicPressure;
   final double diastolicPressure;
+  final double weight;
 
   HealthMetric({
     required this.timestamp,
     required this.heartRate,
     required this.systolicPressure,
     required this.diastolicPressure,
+    required this.weight,
   });
 
   Map<String, dynamic> toMap() {
@@ -17,6 +19,7 @@ class HealthMetric {
       'heartRate': heartRate,
       'systolicPressure': systolicPressure,
       'diastolicPressure': diastolicPressure,
+      'weight': weight,
     };
   }
 
@@ -26,6 +29,7 @@ class HealthMetric {
       heartRate: map['heartRate']?.toDouble() ?? 0.0,
       systolicPressure: map['systolicPressure']?.toDouble() ?? 0.0,
       diastolicPressure: map['diastolicPressure']?.toDouble() ?? 0.0,
+      weight: map['weight']?.toDouble() ?? 0.0,
     );
   }
 }
