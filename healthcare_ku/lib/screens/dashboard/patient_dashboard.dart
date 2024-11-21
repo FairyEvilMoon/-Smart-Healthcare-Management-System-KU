@@ -1,5 +1,10 @@
 // lib/screens/dashboard/patient_dashboard.dart
 import 'package:flutter/material.dart';
+import 'package:healthcare_ku/models/appointment_model.dart';
+import 'package:healthcare_ku/screens/appointments/book_appointment_screen.dart';
+import 'package:healthcare_ku/screens/dashboard/appointment/upcoming_appointments_screen.dart';
+import 'package:healthcare_ku/services/appointment_service.dart';
+import 'package:healthcare_ku/utils/sample_data_generator.dart';
 import 'package:intl/intl.dart';
 import '../../models/patient_model.dart';
 import '../../services/firebase_service.dart';
@@ -7,7 +12,7 @@ import '../../services/firebase_service.dart';
 class PatientDashboard extends StatefulWidget {
   final PatientModel patient;
 
-  PatientDashboard({required this.patient});
+  PatientDashboard({required this.patient, Key? key});
 
   @override
   _PatientDashboardState createState() => _PatientDashboardState();
@@ -156,22 +161,37 @@ class _PatientDashboardState extends State<PatientDashboard> {
       {
         'icon': Icons.calendar_today,
         'label': 'Appointments',
-        'route': '/appointments'
+        'onTap': () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => BookAppointmentScreen(
+                patientId: widget.patient.uid,
+              ),
+            ),
+          );
+        },
       },
       {
         'icon': Icons.medication,
         'label': 'Medications',
-        'route': '/medications'
+        'onTap': () {
+          Navigator.pushNamed(context, '/medications');
+        },
       },
       {
         'icon': Icons.favorite,
         'label': 'Health Metrics',
-        'route': '/health-metrics'
+        'onTap': () {
+          Navigator.pushNamed(context, '/health-metrics');
+        },
       },
       {
         'icon': Icons.description,
         'label': 'Medical Records',
-        'route': '/medical-records'
+        'onTap': () {
+          Navigator.pushNamed(context, '/medical-records');
+        },
       },
     ];
 
@@ -186,9 +206,7 @@ class _PatientDashboardState extends State<PatientDashboard> {
         return Card(
           elevation: 2,
           child: InkWell(
-            onTap: () {
-              Navigator.pushNamed(context, action['route'] as String);
-            },
+            onTap: action['onTap'] as Function(),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -216,6 +234,7 @@ class _PatientDashboardState extends State<PatientDashboard> {
       child: Padding(
         padding: EdgeInsets.all(16.0),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
@@ -227,39 +246,79 @@ class _PatientDashboardState extends State<PatientDashboard> {
                 ),
                 TextButton(
                   onPressed: () {
-                    Navigator.pushNamed(context, '/appointments');
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => UpcomingAppointmentsScreen(
+                          patientId: widget.patient.uid,
+                        ),
+                      ),
+                    );
                   },
                   child: Text('View All'),
                 ),
               ],
             ),
             SizedBox(height: 8),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: NeverScrollableScrollPhysics(),
-              itemCount: 2, // Show only next 2 appointments
-              itemBuilder: (context, index) {
-                return Card(
-                  elevation: 1,
-                  margin: EdgeInsets.symmetric(vertical: 4),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      child: Icon(Icons.medical_services),
+            StreamBuilder<List<AppointmentModel>>(
+              stream: AppointmentService()
+                  .getUpcomingAppointments(widget.patient.uid),
+              builder: (context, snapshot) {
+                print("Patient ID: ${widget.patient.uid}");
+                print("Data: ${snapshot.data}");
+                print("Error: ${snapshot.error}");
+
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+
+                final appointments = snapshot.data ?? [];
+
+                if (appointments.isEmpty) {
+                  return Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20),
+                    child: Center(
+                      child: Text('No upcoming appointments'),
                     ),
-                    title: Text('Dr. John Doe'),
-                    subtitle: Text('General Checkup'),
-                    trailing: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text('Tomorrow'),
-                        Text('10:00 AM'),
-                      ],
-                    ),
-                    onTap: () {
-                      // View appointment details
-                    },
-                  ),
+                  );
+                }
+
+                return Column(
+                  children: appointments
+                      .take(2)
+                      .map((appointment) => Card(
+                            elevation: 1,
+                            margin: EdgeInsets.symmetric(vertical: 4),
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                child: Icon(Icons.medical_services),
+                              ),
+                              title: Text(appointment.doctorName),
+                              subtitle: Text(appointment.purpose),
+                              trailing: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    DateFormat('MMM d')
+                                        .format(appointment.dateTime),
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  Text(
+                                    DateFormat('h:mm a')
+                                        .format(appointment.dateTime),
+                                    style: TextStyle(color: Colors.grey),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ))
+                      .toList(),
                 );
               },
             ),

@@ -1,263 +1,370 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import '../../models/appointment_model.dart';
-import '../../services/firebase_service.dart';
+import 'package:intl/intl.dart';
+import '../../models/doctor_model.dart';
+import '../../services/doctor_service.dart';
+import '../../services/appointment_service.dart';
 
 class BookAppointmentScreen extends StatefulWidget {
+  final String patientId;
+
+  const BookAppointmentScreen({
+    Key? key,
+    required this.patientId,
+  }) : super(key: key);
+
   @override
   _BookAppointmentScreenState createState() => _BookAppointmentScreenState();
 }
 
 class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
-  final _firebaseService = FirebaseService();
-  DateTime? _selectedDate;
-  String? _selectedTimeSlot;
-  String? _selectedDoctor;
-  bool _isLoading = false;
+  final DoctorService _doctorService = DoctorService();
+  final AppointmentService _appointmentService = AppointmentService();
+  final TextEditingController _purposeController = TextEditingController();
 
-  List<String> _timeSlots = [
-    '09:00 AM',
-    '09:30 AM',
-    '10:00 AM',
-    '10:30 AM',
-    '11:00 AM',
-    '11:30 AM',
-    '02:00 PM',
-    '02:30 PM',
-    '03:00 PM',
-    '03:30 PM',
-    '04:00 PM',
-    '04:30 PM',
+  String? selectedSpecialization;
+  DoctorModel? selectedDoctor;
+  DateTime? selectedDate;
+  String? selectedTime;
+  bool isLoading = false;
+
+  final List<String> specializations = [
+    'Cardiology',
+    'Dermatology',
+    'General Medicine',
+    'Neurology',
+    'Pediatrics',
+    'Psychiatry',
+    // Add more specializations as needed
   ];
 
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now().add(Duration(days: 1)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(Duration(days: 30)),
-    );
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Book Appointment'),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Specialization Selection
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Select Specialization',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      value: selectedSpecialization,
+                      decoration: const InputDecoration(
+                        hintText: 'Choose specialization',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: specializations.map((String specialization) {
+                        return DropdownMenuItem(
+                          value: specialization,
+                          child: Text(specialization),
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          selectedSpecialization = newValue;
+                          selectedDoctor = null;
+                          selectedDate = null;
+                          selectedTime = null;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
 
-    if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-      });
-    }
+            // Doctor Selection
+            if (selectedSpecialization != null)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Select Doctor',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      StreamBuilder<List<DoctorModel>>(
+                        stream: _doctorService.getDoctorsBySpecialization(
+                          selectedSpecialization!,
+                        ),
+                        builder: (context, snapshot) {
+                          if (snapshot.hasError) {
+                            return Text('Error: ${snapshot.error}');
+                          }
+
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const CircularProgressIndicator();
+                          }
+
+                          final doctors = snapshot.data ?? [];
+
+                          if (doctors.isEmpty) {
+                            return const Text(
+                                'No doctors available for this specialization');
+                          }
+
+                          return ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: doctors.length,
+                            itemBuilder: (context, index) {
+                              final doctor = doctors[index];
+                              return RadioListTile<DoctorModel>(
+                                title: Text(doctor.name),
+                                subtitle: Text(doctor.specialization ?? ''),
+                                value: doctor,
+                                groupValue: selectedDoctor,
+                                onChanged: (DoctorModel? value) {
+                                  setState(() {
+                                    selectedDoctor = value;
+                                    selectedDate = null;
+                                    selectedTime = null;
+                                  });
+                                },
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            const SizedBox(height: 16),
+
+            // Date Selection
+            if (selectedDoctor != null)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Select Date',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          final DateTime? picked = await showDatePicker(
+                            context: context,
+                            initialDate: DateTime.now(),
+                            firstDate: DateTime.now(),
+                            lastDate:
+                                DateTime.now().add(const Duration(days: 30)),
+                          );
+                          if (picked != null) {
+                            setState(() {
+                              selectedDate = picked;
+                              selectedTime = null;
+                            });
+                          }
+                        },
+                        icon: const Icon(Icons.calendar_today),
+                        label: Text(
+                          selectedDate == null
+                              ? 'Choose Date'
+                              : DateFormat('EEEE, MMMM d, y')
+                                  .format(selectedDate!),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            const SizedBox(height: 16),
+
+            // Time Selection
+            if (selectedDate != null)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Select Time',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      StreamBuilder<List<String>>(
+                        stream: _doctorService.getAvailableTimeSlots(
+                          selectedDoctor!.uid,
+                          selectedDate!,
+                        ),
+                        builder: (context, snapshot) {
+                          if (snapshot.hasError) {
+                            return Text('Error: ${snapshot.error}');
+                          }
+
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const CircularProgressIndicator();
+                          }
+
+                          final timeSlots = snapshot.data ?? [];
+
+                          if (timeSlots.isEmpty) {
+                            return const Text(
+                                'No available time slots for this date');
+                          }
+
+                          return Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: timeSlots.map((String time) {
+                              return ChoiceChip(
+                                label: Text(time),
+                                selected: selectedTime == time,
+                                onSelected: (bool selected) {
+                                  setState(() {
+                                    selectedTime = selected ? time : null;
+                                  });
+                                },
+                              );
+                            }).toList(),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            const SizedBox(height: 16),
+
+            // Purpose of Visit
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Purpose of Visit',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _purposeController,
+                      decoration: const InputDecoration(
+                        hintText: 'Enter the reason for your appointment',
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 3,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Book Button
+            ElevatedButton(
+              onPressed: isLoading
+                  ? null
+                  : _canBook()
+                      ? _bookAppointment
+                      : null,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+              child: isLoading
+                  ? const CircularProgressIndicator()
+                  : const Text('Book Appointment'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  bool _canBook() {
+    return selectedDoctor != null &&
+        selectedDate != null &&
+        selectedTime != null &&
+        _purposeController.text.isNotEmpty;
   }
 
   Future<void> _bookAppointment() async {
-    if (_selectedDate == null ||
-        _selectedTimeSlot == null ||
-        _selectedDoctor == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please select all required fields')),
+    if (!_canBook()) return;
+
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      // Get the current user
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw 'No authenticated user found';
+      }
+
+      print('Booking appointment for user: ${user.uid}');
+
+      final dateTimeString =
+          '${DateFormat('yyyy-MM-dd').format(selectedDate!)} $selectedTime';
+      final appointmentDateTime =
+          DateFormat('yyyy-MM-dd HH:mm').parse(dateTimeString);
+
+      await _appointmentService.createAppointment(
+        patientId: user.uid, // Use the current user's ID
+        doctorId: selectedDoctor!.uid,
+        doctorName: selectedDoctor!.name,
+        purpose: _purposeController.text.trim(),
+        dateTime: appointmentDateTime,
       );
-      return;
-    }
 
-    setState(() => _isLoading = true);
-
-    // Convert selected time slot to DateTime
-    final timeComponents = _selectedTimeSlot!.split(':');
-    final hour = int.parse(timeComponents[0]);
-    final minute = int.parse(timeComponents[1].split(' ')[0]);
-    final isPM = _selectedTimeSlot!.endsWith('PM');
-
-    final appointmentDateTime = DateTime(
-      _selectedDate!.year,
-      _selectedDate!.month,
-      _selectedDate!.day,
-      isPM ? hour + 12 : hour,
-      minute,
-    );
-
-    final appointment = AppointmentModel(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      doctorId: _selectedDoctor!,
-      patientId: 'current-user-id', // Replace with actual patient ID
-      dateTime: appointmentDateTime,
-      status: 'pending',
-    );
-
-    final success = await _firebaseService.createAppointment(appointment);
-
-    setState(() => _isLoading = false);
-
-    if (success) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Appointment booked successfully')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to book appointment')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Appointment booked successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      print('Error in _bookAppointment: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error booking appointment: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Book Appointment'),
-      ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Card(
-              child: Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Select Doctor',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    SizedBox(height: 16),
-                    // Add doctor selection dropdown here
-                  ],
-                ),
-              ),
-            ),
-            SizedBox(height: 16),
-            Card(
-              child: Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Select Date & Time',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    SizedBox(height: 16),
-                    ListTile(
-                      title: Text(_selectedDate == null
-                          ? 'Select Date'
-                          : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}'),
-                      trailing: Icon(Icons.calendar_today),
-                      onTap: () => _selectDate(context),
-                    ),
-                    SizedBox(height: 16),
-                    Text(
-                      'Available Time Slots',
-                      style: Theme.of(context).textTheme.titleSmall,
-                    ),
-                    SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _timeSlots.map((slot) {
-                        return ChoiceChip(
-                          label: Text(slot),
-                          selected: _selectedTimeSlot == slot,
-                          onSelected: (selected) {
-                            setState(() {
-                              _selectedTimeSlot = selected ? slot : null;
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _isLoading ? null : _bookAppointment,
-              child: _isLoading
-                  ? CircularProgressIndicator()
-                  : Text('Book Appointment'),
-              style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(vertical: 16),
-              ),
-            ),
-            SizedBox(height: 16),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Cancel'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// lib/screens/appointments/appointment_confirmation_screen.dart
-class AppointmentConfirmationScreen extends StatelessWidget {
-  final AppointmentModel appointment;
-
-  AppointmentConfirmationScreen({required this.appointment});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Appointment Confirmed'),
-      ),
-      body: Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Icon(
-              Icons.check_circle_outline,
-              size: 64,
-              color: Colors.green,
-            ),
-            SizedBox(height: 24),
-            Text(
-              'Appointment Confirmed!',
-              style: Theme.of(context).textTheme.headlineSmall,
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 32),
-            Card(
-              child: Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildInfoRow('Date',
-                        '${appointment.dateTime.day}/${appointment.dateTime.month}/${appointment.dateTime.year}'),
-                    _buildInfoRow('Time',
-                        '${appointment.dateTime.hour}:${appointment.dateTime.minute.toString().padLeft(2, '0')}'),
-                    _buildInfoRow('Status', appointment.status),
-                  ],
-                ),
-              ),
-            ),
-            SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: () => Navigator.popUntil(
-                context,
-                ModalRoute.withName('/dashboard'),
-              ),
-              child: Text('Return to Dashboard'),
-              style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(vertical: 16),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: TextStyle(fontWeight: FontWeight.bold)),
-          Text(value),
-        ],
-      ),
-    );
+  void dispose() {
+    _purposeController.dispose();
+    super.dispose();
   }
 }
