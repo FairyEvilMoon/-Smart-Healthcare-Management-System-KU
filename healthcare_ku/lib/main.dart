@@ -9,7 +9,7 @@ import 'firebase_options.dart';
 import 'middleware/doctor_verification_middleware.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/signup_screen.dart';
-import 'screens/dashboard/patient_dashboard.dart';
+import 'screens/dashboard/patient/patient_dashboard.dart';
 import 'screens/dashboard/doctor_dashboard.dart';
 import 'screens/dashboard/admin_dashboard.dart';
 import 'services/firebase_service.dart';

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../../models/appointment_model.dart';
-import '../../../services/appointment_service.dart';
+import '../../../../models/appointment_model.dart';
+import '../../../../services/appointment_service.dart';
 
 class UpcomingAppointmentsScreen extends StatelessWidget {
   final String patientId;

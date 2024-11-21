@@ -1,9 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../models/doctor_model.dart';
-import '../../services/doctor_service.dart';
-import '../../services/appointment_service.dart';
+import '../../../../models/doctor_model.dart';
+import '../../../../services/doctor_service.dart';
+import '../../../../services/appointment_service.dart';
 
 class BookAppointmentScreen extends StatefulWidget {
   final String patientId;

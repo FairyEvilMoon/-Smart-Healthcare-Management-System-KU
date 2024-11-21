@@ -1,13 +1,12 @@
 // lib/screens/dashboard/patient_dashboard.dart
 import 'package:flutter/material.dart';
 import 'package:healthcare_ku/models/appointment_model.dart';
-import 'package:healthcare_ku/screens/appointments/book_appointment_screen.dart';
-import 'package:healthcare_ku/screens/dashboard/appointment/upcoming_appointments_screen.dart';
+import 'package:healthcare_ku/screens/dashboard/patient/appointments/book_appointment_screen.dart';
+import 'package:healthcare_ku/screens/dashboard/patient/appointments/upcoming_appointments_screen.dart';
 import 'package:healthcare_ku/services/appointment_service.dart';
-import 'package:healthcare_ku/utils/sample_data_generator.dart';
 import 'package:intl/intl.dart';
-import '../../models/patient_model.dart';
-import '../../services/firebase_service.dart';
+import '../../../models/patient_model.dart';
+import '../../../services/firebase_service.dart';
 
 class PatientDashboard extends StatefulWidget {
   final PatientModel patient;
