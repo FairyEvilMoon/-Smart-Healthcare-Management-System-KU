@@ -125,35 +125,35 @@ class FirebaseService {
   }
 
   // Appointments
-  Future<List<AppointmentModel>> getDoctorAppointments(String doctorId) async {
-    try {
-      final QuerySnapshot snapshot = await _firestore
-          .collection('appointments')
-          .where('doctorId', isEqualTo: doctorId)
-          .get();
+  // Future<List<AppointmentModel>> getDoctorAppointments(String doctorId) async {
+  //   try {
+  //     final QuerySnapshot snapshot = await _firestore
+  //         .collection('appointments')
+  //         .where('doctorId', isEqualTo: doctorId)
+  //         .get();
 
-      return snapshot.docs
-          .map((doc) => AppointmentModel.fromMap(
-              {...doc.data() as Map<String, dynamic>, 'id': doc.id}))
-          .toList();
-    } catch (e) {
-      print('Get doctor appointments error: $e');
-      return [];
-    }
-  }
+  //     return snapshot.docs
+  //         .map((doc) => AppointmentModel.fromMap(
+  //             {...doc.data() as Map<String, dynamic>, 'id': doc.id}))
+  //         .toList();
+  //   } catch (e) {
+  //     print('Get doctor appointments error: $e');
+  //     return [];
+  //   }
+  // }
 
-  Future<bool> createAppointment(AppointmentModel appointment) async {
-    try {
-      await _firestore
-          .collection('appointments')
-          .doc(appointment.id)
-          .set(appointment.toMap());
-      return true;
-    } catch (e) {
-      print('Create appointment error: $e');
-      return false;
-    }
-  }
+  // Future<bool> createAppointment(AppointmentModel appointment) async {
+  //   try {
+  //     await _firestore
+  //         .collection('appointments')
+  //         .doc(appointment.id)
+  //         .set(appointment.toMap());
+  //     return true;
+  //   } catch (e) {
+  //     print('Create appointment error: $e');
+  //     return false;
+  //   }
+  // }
 
   // Health Metrics
   Future<void> addHealthMetric(String patientId, HealthMetric metric) async {

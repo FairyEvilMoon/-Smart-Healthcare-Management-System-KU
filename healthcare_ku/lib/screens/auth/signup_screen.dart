@@ -22,6 +22,10 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
+  void _navigateToLogin() {
+    Navigator.pushReplacementNamed(context, '/login');
+  }
+
   Future<void> _signUp() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
@@ -43,8 +47,19 @@ class _SignupScreenState extends State<SignupScreen> {
           phoneNumber: _phoneController.text.trim(),
         );
 
-        // Navigate to dashboard
-        Navigator.pushReplacementNamed(context, '/dashboard');
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Account created successfully!'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        // Wait for snackbar to show before navigating
+        await Future.delayed(Duration(seconds: 2));
+
+        // Navigate back to login
+        _navigateToLogin();
       } on FirebaseAuthException catch (e) {
         String errorMessage = 'An error occurred during signup';
 
@@ -72,7 +87,12 @@ class _SignupScreenState extends State<SignupScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Create Account'),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back),
+          onPressed: _navigateToLogin,
+        ),
       ),
+      // Rest of the build method remains the same
       body: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.all(16.0),
@@ -233,9 +253,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   children: [
                     Text('Already have an account?'),
                     TextButton(
-                      onPressed: () {
-                        Navigator.pushReplacementNamed(context, '/login');
-                      },
+                      onPressed: _navigateToLogin,
                       child: Text('Login'),
                     ),
                   ],
