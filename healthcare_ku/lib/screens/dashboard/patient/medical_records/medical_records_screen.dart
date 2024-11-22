@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'dart:html' as html;
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:healthcare_ku/models/medical_record_model.dart';
 import 'package:healthcare_ku/screens/dashboard/patient/medical_records/add_medical_record_screen.dart';
@@ -28,7 +29,8 @@ class _ViewMedicalRecordsScreenState extends State<ViewMedicalRecordsScreen> {
         title: const Text('Medical Records'),
       ),
       body: StreamBuilder<List<MedicalRecord>>(
-        stream: _recordService.getPatientMedicalRecords(widget.patientId),
+        stream: _recordService
+            .getPatientMedicalRecords(FirebaseAuth.instance.currentUser!.uid),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(

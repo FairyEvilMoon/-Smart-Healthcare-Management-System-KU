@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:healthcare_ku/models/appointment_model.dart';
 import 'package:healthcare_ku/models/health_metric.dart';
+import 'package:healthcare_ku/models/medical_record_model.dart';
 import 'package:healthcare_ku/models/prescription_model.dart';
 import 'package:healthcare_ku/screens/dashboard/patient/appointments/book_appointment_screen.dart';
 import 'package:healthcare_ku/screens/dashboard/patient/appointments/upcoming_appointments_screen.dart';
@@ -11,6 +12,7 @@ import 'package:healthcare_ku/screens/dashboard/patient/medical_records/medical_
 import 'package:healthcare_ku/screens/dashboard/patient/prescriptions/prescription_detail_screen.dart';
 import 'package:healthcare_ku/screens/dashboard/patient/prescriptions/prescription_list_screen.dart';
 import 'package:healthcare_ku/services/appointment_service.dart';
+import 'package:healthcare_ku/services/medical_record_service.dart';
 import 'package:healthcare_ku/services/prescription_service.dart';
 import 'package:intl/intl.dart';
 import '../../../models/patient_model.dart';
@@ -77,6 +79,7 @@ class _PatientDashboardState extends State<PatientDashboard> {
 
   Widget _buildWelcomeCard() {
     final PrescriptionService _prescriptionService = PrescriptionService();
+    final MedicalRecordService _medicalRecordService = MedicalRecordService();
 
     return Card(
       elevation: 2,
@@ -161,10 +164,25 @@ class _PatientDashboardState extends State<PatientDashboard> {
                     );
                   },
                 ),
-                _buildStatusItem(
-                  'Reports',
-                  '3 new',
-                  Icons.description,
+                StreamBuilder<List<MedicalRecord>>(
+                  stream: _medicalRecordService
+                      .getPatientMedicalRecords(widget.patient.uid),
+                  builder: (context, snapshot) {
+                    String reportText = '0 reports';
+                    if (snapshot.hasData) {
+                      final int recordCount = snapshot.data!.length;
+                      reportText =
+                          '$recordCount report${recordCount != 1 ? 's' : ''}';
+                    } else if (snapshot.hasError) {
+                      reportText = 'Error';
+                    }
+
+                    return _buildStatusItem(
+                      'Reports',
+                      reportText,
+                      Icons.description,
+                    );
+                  },
                 ),
               ],
             ),

@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:healthcare_ku/models/medical_record_model.dart';
@@ -648,12 +649,13 @@ class _AddMedicalRecordScreenState extends State<AddMedicalRecordScreen> {
       _formKey.currentState!.save();
 
       // Get current doctor ID
-      final String doctorId = _authService.currentUser!.uid;
+      final String patientId = FirebaseAuth.instance.currentUser!.uid;
+      final String doctorId = "placeholder_doctor_id";
 
       // Create the medical record
       final record = MedicalRecord(
         id: '', // Will be set by Firestore
-        patientId: widget.patientId,
+        patientId: patientId,
         doctorId: doctorId,
         dateCreated: DateTime.now(),
         lastUpdated: DateTime.now(),
