@@ -3,10 +3,15 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:healthcare_ku/models/appointment_model.dart';
 import 'package:healthcare_ku/models/health_metric.dart';
+import 'package:healthcare_ku/models/prescription_model.dart';
 import 'package:healthcare_ku/screens/dashboard/patient/appointments/book_appointment_screen.dart';
 import 'package:healthcare_ku/screens/dashboard/patient/appointments/upcoming_appointments_screen.dart';
 import 'package:healthcare_ku/screens/dashboard/patient/health/view_health_metrics_screen.dart';
+import 'package:healthcare_ku/screens/dashboard/patient/medical_records/medical_records_screen.dart';
+import 'package:healthcare_ku/screens/dashboard/patient/prescriptions/prescription_detail_screen.dart';
+import 'package:healthcare_ku/screens/dashboard/patient/prescriptions/prescription_list_screen.dart';
 import 'package:healthcare_ku/services/appointment_service.dart';
+import 'package:healthcare_ku/services/prescription_service.dart';
 import 'package:intl/intl.dart';
 import '../../../models/patient_model.dart';
 import '../../../services/firebase_service.dart';
@@ -67,17 +72,12 @@ class _PatientDashboardState extends State<PatientDashboard> {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.pushNamed(context, '/book-appointment');
-        },
-        label: Text('Book Appointment'),
-        icon: Icon(Icons.add),
-      ),
     );
   }
 
   Widget _buildWelcomeCard() {
+    final PrescriptionService _prescriptionService = PrescriptionService();
+
     return Card(
       elevation: 2,
       child: Padding(
@@ -139,10 +139,27 @@ class _PatientDashboardState extends State<PatientDashboard> {
                     );
                   },
                 ),
-                _buildStatusItem(
-                  'Medications',
-                  '2 pending',
-                  Icons.medical_services,
+                StreamBuilder<List<PrescriptionModel>>(
+                  stream: _prescriptionService
+                      .getPrescriptionsForPatient(widget.patient.uid),
+                  builder: (context, snapshot) {
+                    int activeMedications = 0;
+                    if (snapshot.hasData) {
+                      activeMedications = snapshot.data!
+                          .where(
+                              (prescription) => prescription.status == 'Active')
+                          .fold(
+                              0,
+                              (sum, prescription) =>
+                                  sum + prescription.medications.length);
+                    }
+
+                    return _buildStatusItem(
+                      'Medications',
+                      '$activeMedications pending',
+                      Icons.medical_services,
+                    );
+                  },
                 ),
                 _buildStatusItem(
                   'Reports',
@@ -178,7 +195,7 @@ class _PatientDashboardState extends State<PatientDashboard> {
     final actions = [
       {
         'icon': Icons.calendar_today,
-        'label': 'Appointments',
+        'label': 'Book Appointments',
         'onTap': () {
           Navigator.push(
             context,
@@ -194,7 +211,14 @@ class _PatientDashboardState extends State<PatientDashboard> {
         'icon': Icons.medication,
         'label': 'Medications',
         'onTap': () {
-          Navigator.pushNamed(context, '/medications');
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PrescriptionListScreen(
+                patientId: widget.patient.uid, // Replace with actual patient ID
+              ),
+            ),
+          );
         },
       },
       {
@@ -211,7 +235,14 @@ class _PatientDashboardState extends State<PatientDashboard> {
         'icon': Icons.description,
         'label': 'Medical Records',
         'onTap': () {
-          Navigator.pushNamed(context, '/medical-records');
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ViewMedicalRecordsScreen(
+                patientId: 'widget.patient.uid',
+              ),
+            ),
+          );
         },
       },
     ];
@@ -449,6 +480,8 @@ class _PatientDashboardState extends State<PatientDashboard> {
   }
 
   Widget _buildRecentPrescriptions() {
+    final PrescriptionService _prescriptionService = PrescriptionService();
+
     return Card(
       elevation: 2,
       child: Padding(
@@ -465,31 +498,120 @@ class _PatientDashboardState extends State<PatientDashboard> {
                 ),
                 TextButton(
                   onPressed: () {
-                    Navigator.pushNamed(context, '/prescriptions');
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => PrescriptionListScreen(
+                          patientId: widget.patient.uid,
+                        ),
+                      ),
+                    );
                   },
                   child: Text('View All'),
                 ),
               ],
             ),
             SizedBox(height: 8),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: NeverScrollableScrollPhysics(),
-              itemCount: 2,
-              itemBuilder: (context, index) {
-                return Card(
-                  elevation: 1,
-                  margin: EdgeInsets.symmetric(vertical: 4),
-                  child: ListTile(
-                    leading: Icon(Icons.medication),
-                    title: Text('Prescription #${index + 1}'),
-                    subtitle: Text(
-                        'Dr. Jane Smith • ${DateFormat('MMM dd, yyyy').format(DateTime.now())}'),
-                    trailing: Icon(Icons.chevron_right),
-                    onTap: () {
-                      // View prescription details
-                    },
-                  ),
+            StreamBuilder<List<PrescriptionModel>>(
+              stream: _prescriptionService
+                  .getPrescriptionsForPatient(widget.patient.uid),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error loading prescriptions'));
+                }
+
+                final prescriptions = snapshot.data ?? [];
+                if (prescriptions.isEmpty) {
+                  return Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Center(
+                      child: Text('No prescriptions found'),
+                    ),
+                  );
+                }
+
+                // Show only the 2 most recent prescriptions
+                final recentPrescriptions = prescriptions.take(2).toList();
+
+                return ListView.builder(
+                  shrinkWrap: true,
+                  physics: NeverScrollableScrollPhysics(),
+                  itemCount: recentPrescriptions.length,
+                  itemBuilder: (context, index) {
+                    final prescription = recentPrescriptions[index];
+                    return Card(
+                      elevation: 1,
+                      margin: EdgeInsets.symmetric(vertical: 4),
+                      child: ListTile(
+                        leading: Icon(
+                          Icons.medication,
+                          color: prescription.status == 'Active'
+                              ? Colors.green
+                              : Colors.grey,
+                        ),
+                        title: Text(
+                          'Prescription #${prescription.id.substring(0, 8)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Dr. ${prescription.doctorId}', // You might want to fetch doctor's name
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            Text(
+                              DateFormat('MMM dd, yyyy')
+                                  .format(prescription.prescriptionDate),
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ],
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: prescription.status == 'Active'
+                                    ? Colors.green[100]
+                                    : Colors.grey[100],
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                prescription.status,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: prescription.status == 'Active'
+                                      ? Colors.green[700]
+                                      : Colors.grey[700],
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Icon(Icons.chevron_right),
+                          ],
+                        ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => PrescriptionDetailScreen(
+                                prescriptionId: prescription.id,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
                 );
               },
             ),
