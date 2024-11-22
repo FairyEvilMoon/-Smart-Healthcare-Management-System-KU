@@ -23,10 +23,68 @@ class _DoctorDashboardState extends State<DoctorDashboard>
     _tabController = TabController(length: 3, vsync: this);
   }
 
+  Future<void> _handleSignOut() async {
+    try {
+      // Show confirmation dialog
+      final shouldSignOut = await showDialog<bool>(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('Sign Out'),
+            content: Text('Are you sure you want to sign out?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: Text(
+                  'Sign Out',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (shouldSignOut == true) {
+        // Show loading dialog
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return Center(
+              child: CircularProgressIndicator(),
+            );
+          },
+        );
+
+        await _firebaseService.signOut();
+
+        // Pop loading dialog and navigate to login
+        Navigator.of(context).pop();
+        Navigator.of(context)
+            .pushNamedAndRemoveUntil('/login', (route) => false);
+      }
+    } catch (e) {
+      // Handle any errors
+      Navigator.of(context).pop(); // Pop loading dialog if it's showing
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error signing out. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: Text('Doctor Dashboard'),
         bottom: TabBar(
           controller: _tabController,
@@ -43,12 +101,45 @@ class _DoctorDashboardState extends State<DoctorDashboard>
               Navigator.pushNamed(context, '/notifications');
             },
           ),
-          IconButton(
+          PopupMenuButton<String>(
             icon: Icon(Icons.person),
-            onPressed: () {
-              Navigator.pushNamed(context, '/profile');
+            onSelected: (value) {
+              switch (value) {
+                case 'profile':
+                  Navigator.pushNamed(context, '/profile');
+                  break;
+                case 'signout':
+                  _handleSignOut();
+                  break;
+              }
             },
+            itemBuilder: (BuildContext context) => [
+              PopupMenuItem<String>(
+                value: 'profile',
+                child: Row(
+                  children: [
+                    Icon(Icons.person_outline, color: Colors.black),
+                    SizedBox(width: 8),
+                    Text('Profile'),
+                  ],
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'signout',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text(
+                      'Sign Out',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
+          SizedBox(width: 8),
         ],
       ),
       body: TabBarView(

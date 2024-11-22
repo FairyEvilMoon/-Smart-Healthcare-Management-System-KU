@@ -78,6 +78,7 @@ class FirebaseService {
     required String email,
     required String role,
     String? phoneNumber,
+    required Map<String, dynamic> additionalData,
   }) async {
     try {
       final userData = {
@@ -101,9 +102,9 @@ class FirebaseService {
       } else if (role == 'doctor') {
         // Additional doctor-specific data
         userData.addAll({
-          'specialization': '',
-          'licenseNumber': '',
-          'availability': [],
+          'specialization': additionalData['specialization'] ?? '',
+          'licenseNumber': additionalData['licenseNumber'] ?? '',
+          'availability': additionalData['availability'] ?? [],
           'rating': 0.0,
           'numberOfReviews': 0,
         });
@@ -125,6 +126,8 @@ class FirebaseService {
           'appointments': [],
           'patients': [],
           'schedule': {},
+          'specialization': additionalData['specialization'] ?? '',
+          'licenseNumber': additionalData['licenseNumber'] ?? '',
         });
       }
     } catch (e) {
