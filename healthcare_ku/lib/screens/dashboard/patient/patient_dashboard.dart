@@ -12,6 +12,7 @@ import 'package:healthcare_ku/screens/dashboard/patient/medical_records/medical_
 import 'package:healthcare_ku/screens/dashboard/patient/prescriptions/prescription_detail_screen.dart';
 import 'package:healthcare_ku/screens/dashboard/patient/prescriptions/prescription_list_screen.dart';
 import 'package:healthcare_ku/services/appointment_service.dart';
+import 'package:healthcare_ku/services/health_metrics_service.dart';
 import 'package:healthcare_ku/services/medical_record_service.dart';
 import 'package:healthcare_ku/services/prescription_service.dart';
 import 'package:intl/intl.dart';
@@ -34,6 +35,7 @@ class _PatientDashboardState extends State<PatientDashboard> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: Text('Patient Dashboard'),
         actions: [
           IconButton(
@@ -403,9 +405,9 @@ class _PatientDashboardState extends State<PatientDashboard> {
       elevation: 2,
       child: Padding(
         padding: EdgeInsets.all(16.0),
-        child: FutureBuilder<List<HealthMetric>>(
-          future: FirebaseService()
-              .getPatientHealthMetrics(FirebaseAuth.instance.currentUser!.uid),
+        child: StreamBuilder<List<HealthMetric>>(
+          stream: HealthMetricsService().getPatientHealthMetricsStream(
+              FirebaseAuth.instance.currentUser!.uid),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return Center(child: CircularProgressIndicator());
@@ -428,13 +430,28 @@ class _PatientDashboardState extends State<PatientDashboard> {
                       'Health Metrics',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
-                    TextButton(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => ViewHealthMetricsScreen()),
-                      ),
-                      child: Text('View All'),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.refresh),
+                          onPressed: () {
+                            setState(() {
+                              // This will trigger a rebuild
+                            });
+                          },
+                        ),
+                        TextButton(
+                          onPressed: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => ViewHealthMetricsScreen()),
+                            );
+                            // The StreamBuilder will automatically update when returning
+                          },
+                          child: Text('View All'),
+                        ),
+                      ],
                     ),
                   ],
                 ),

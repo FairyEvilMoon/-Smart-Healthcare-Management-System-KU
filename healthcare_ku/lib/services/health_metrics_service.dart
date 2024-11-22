@@ -25,4 +25,18 @@ class HealthMetricsService {
             .map((doc) => HealthMetric.fromMap(doc.data()))
             .toList());
   }
+
+  Stream<List<HealthMetric>> getPatientHealthMetricsStream(String patientId) {
+    return _firestore
+        .collection('patients')
+        .doc(patientId)
+        .collection('healthMetrics')
+        .orderBy('timestamp', descending: true)
+        .limit(10)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) =>
+                HealthMetric.fromMap(doc.data() as Map<String, dynamic>))
+            .toList());
+  }
 }
