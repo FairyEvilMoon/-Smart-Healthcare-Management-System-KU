@@ -1,8 +1,10 @@
+import 'dart:typed_data';
+import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:healthcare_ku/models/medical_record_model.dart';
 import 'package:healthcare_ku/screens/dashboard/patient/medical_records/add_medical_record_screen.dart';
 import 'package:healthcare_ku/services/medical_record_service.dart';
-import 'package:healthcare_ku/services/pdf_service';
+import 'package:healthcare_ku/services/pdf_service.dart';
 
 class ViewMedicalRecordsScreen extends StatefulWidget {
   final String patientId;
@@ -74,37 +76,32 @@ class _ViewMedicalRecordsScreenState extends State<ViewMedicalRecordsScreen> {
     );
   }
 
+  void _downloadBytes(Uint8List bytes, String fileName) {
+    final blob = html.Blob([bytes]);
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    final anchor = html.AnchorElement()
+      ..href = url
+      ..download = fileName;
+    anchor.click();
+    html.Url.revokeObjectUrl(url);
+  }
+
+// In your medical_records_screen.dart
   Future<void> _downloadPDF(MedicalRecord record) async {
     try {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext context) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
-        },
-      );
-
-      final file = await _pdfService.generateMedicalRecordPDF(record);
-      Navigator.pop(context); // Dismiss loading dialog
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('PDF generated successfully'),
-          action: SnackBarAction(
-            label: 'Open',
-            onPressed: () => _pdfService.sharePDF(file),
-          ),
-        ),
-      );
+      final pdfService = PDFService();
+      final Uint8List bytes = await pdfService.generatePDF(record);
+      _downloadBytes(bytes, "medical_record_${record.id}.pdf");
     } catch (e) {
-      Navigator.pop(context); // Dismiss loading dialog
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error generating PDF: $e'),
-        ),
-      );
+      print('Error generating PDF: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error generating PDF. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 }
@@ -132,7 +129,7 @@ class MedicalRecordCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Doctor ID: ${record.doctorId}'),
+                const Text('Doctor: Doctor not found'), // Changed from doctorId
                 const SizedBox(height: 8),
                 Text('Symptoms: ${record.symptoms}'),
                 const SizedBox(height: 8),

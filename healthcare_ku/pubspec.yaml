@@ -45,7 +45,8 @@ dependencies:
   path_provider: ^2.1.1
   open_file: ^3.3.2
   printing: ^5.11.1 
-  share_plus: ^7.2.1
+  share_plus: ^10.0.0
+  syncfusion_flutter_pdf: ^24.1.46
 dev_dependencies:
   flutter_test:
     sdk: flutter
