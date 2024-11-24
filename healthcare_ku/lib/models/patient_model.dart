@@ -1,6 +1,6 @@
 // lib/models/patient_model.dart
 import 'user_model.dart';
-import 'health_metric.dart';
+import 'health_metric_model.dart';
 
 class PatientModel extends UserModel {
   final List<String> allergies;

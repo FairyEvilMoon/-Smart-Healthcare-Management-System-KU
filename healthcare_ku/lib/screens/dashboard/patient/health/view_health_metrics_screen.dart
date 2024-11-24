@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../services/firebase_service.dart';
-import '../../../../models/health_metric.dart';
+import 'package:healthcare_ku/models/health_metric_model.dart';
 import 'add_health_metric_screen.dart';
 
 class ViewHealthMetricsScreen extends StatefulWidget {

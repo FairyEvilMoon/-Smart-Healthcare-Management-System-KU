@@ -4,8 +4,7 @@ import 'package:healthcare_ku/models/admin_model.dart';
 import 'package:healthcare_ku/models/doctor_model.dart';
 import 'package:healthcare_ku/models/patient_model.dart';
 import '../models/user_model.dart';
-import '../models/appointment_model.dart';
-import '../models/health_metric.dart';
+import 'package:healthcare_ku/models/health_metric_model.dart';
 
 class FirebaseService {
   final FirebaseAuth _auth = FirebaseAuth.instance;

@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:healthcare_ku/models/user_model.dart';
-import 'package:healthcare_ku/models/admin_model.dart'; // Add this import
-import 'package:healthcare_ku/models/doctor_model.dart'; // Add this import
-import 'package:healthcare_ku/models/patient_model.dart'; // Add this import
+import 'package:healthcare_ku/models/admin_model.dart';
+import 'package:healthcare_ku/models/doctor_model.dart';
+import 'package:healthcare_ku/models/patient_model.dart';
 import 'firebase_options.dart';
 import 'middleware/doctor_verification_middleware.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/signup_screen.dart';
 import 'screens/dashboard/patient/patient_dashboard.dart';
-import 'screens/dashboard/doctor_dashboard.dart';
+import 'screens/dashboard/doctor/doctor_dashboard.dart';
 import 'screens/dashboard/admin_dashboard.dart';
 import 'services/firebase_service.dart';
 

@@ -23,18 +23,20 @@ class DoctorService {
 
   Stream<List<DoctorModel>> getDoctorsBySpecialization(String specialization) {
     return _firestore
-        .collection('users') // Changed from 'doctors' to 'users'
+        .collection('users')
         .where('role', isEqualTo: 'doctor')
         .where('status', isEqualTo: 'active')
         .where('specialization', isEqualTo: specialization)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
-          .map((doc) => DoctorModel.fromMap({
-                ...doc.data(),
-                'uid': doc.id,
-              }))
-          .toList();
+      print('Found ${snapshot.docs.length} doctors'); // Debug print
+      return snapshot.docs.map((doc) {
+        print('Doctor data: ${doc.data()}'); // Debug print
+        return DoctorModel.fromMap({
+          ...doc.data(),
+          'uid': doc.id,
+        });
+      }).toList();
     });
   }
 
@@ -54,5 +56,16 @@ class DoctorService {
           .map((slot) => slot.split(' ')[1])
           .toList();
     });
+  }
+
+  Future<bool> checkDoctorsExist(String specialization) async {
+    final QuerySnapshot snapshot = await _firestore
+        .collection('users')
+        .where('role', isEqualTo: 'doctor')
+        .where('status', isEqualTo: 'active')
+        .where('specialization', isEqualTo: specialization)
+        .get();
+
+    return snapshot.docs.isNotEmpty;
   }
 }
