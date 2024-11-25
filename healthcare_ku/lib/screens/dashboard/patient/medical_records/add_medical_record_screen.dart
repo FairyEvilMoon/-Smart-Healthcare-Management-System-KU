@@ -649,8 +649,8 @@ class _AddMedicalRecordScreenState extends State<AddMedicalRecordScreen> {
       _formKey.currentState!.save();
 
       // Get current doctor ID
-      final String patientId = FirebaseAuth.instance.currentUser!.uid;
-      final String doctorId = "placeholder_doctor_id";
+      final String patientId = widget.patientId;
+      final String doctorId = FirebaseAuth.instance.currentUser!.uid;
 
       // Create the medical record
       final record = MedicalRecord(

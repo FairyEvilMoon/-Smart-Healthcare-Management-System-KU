@@ -68,4 +68,69 @@ class DoctorService {
 
     return snapshot.docs.isNotEmpty;
   }
+
+  Future<void> saveNote({
+    required String doctorId,
+    required String patientId,
+    required String notes,
+    String? diagnosis,
+    Map<String, dynamic>? vitalSigns,
+  }) async {
+    try {
+      await _firestore.collection('doctor_notes').add({
+        'doctorId': doctorId,
+        'patientId': patientId,
+        'notes': notes,
+        'diagnosis': diagnosis,
+        'vitalSigns': vitalSigns,
+        'createdAt': Timestamp.now(),
+        'updatedAt': Timestamp.now(),
+      });
+    } catch (e) {
+      throw 'Error saving note: $e';
+    }
+  }
+
+  Stream<QuerySnapshot> getDoctorNotes(String doctorId, String patientId) {
+    return _firestore
+        .collection('doctor_notes')
+        .where('doctorId', isEqualTo: doctorId)
+        .where('patientId', isEqualTo: patientId)
+        .orderBy('createdAt', descending: true)
+        .snapshots();
+  }
+
+  Future<void> savePrescription({
+    required String doctorId,
+    required String patientId,
+    required String medication,
+    required String dosage,
+    required String frequency,
+    required String duration,
+    String? instructions,
+  }) async {
+    try {
+      await _firestore.collection('prescriptions').add({
+        'doctorId': doctorId,
+        'patientId': patientId,
+        'medication': medication,
+        'dosage': dosage,
+        'frequency': frequency,
+        'duration': duration,
+        'instructions': instructions,
+        'prescribedDate': Timestamp.now(),
+        'status': 'active'
+      });
+    } catch (e) {
+      throw 'Error saving prescription: $e';
+    }
+  }
+
+  Stream<QuerySnapshot> getPatientPrescriptions(String patientId) {
+    return _firestore
+        .collection('prescriptions')
+        .where('patientId', isEqualTo: patientId)
+        .orderBy('prescribedDate', descending: true)
+        .snapshots();
+  }
 }

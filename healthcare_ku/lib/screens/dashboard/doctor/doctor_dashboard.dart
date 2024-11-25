@@ -2,7 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:healthcare_ku/models/appointment_model.dart';
 import 'package:healthcare_ku/models/availability_slot_model.dart';
+import 'package:healthcare_ku/models/patient_model.dart';
 import 'package:healthcare_ku/screens/dashboard/doctor/availability/manage_availability_screen.dart';
+import 'package:healthcare_ku/screens/dashboard/doctor/patient_details/patient_card.dart';
+import 'package:healthcare_ku/screens/dashboard/doctor/patient_details/patient_detail_screen.dart';
 import 'package:healthcare_ku/services/appointment_service.dart';
 import 'package:healthcare_ku/services/availability_service.dart';
 import 'package:healthcare_ku/widgets/data_selector.dart';
@@ -610,11 +613,11 @@ class _DoctorDashboardState extends State<DoctorDashboard>
   }
 
   Widget _buildPatientsView() {
-    return Padding(
-      padding: EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          TextField(
+    return Column(
+      children: [
+        Padding(
+          padding: EdgeInsets.all(16.0),
+          child: TextField(
             decoration: InputDecoration(
               hintText: 'Search patients...',
               prefixIcon: Icon(Icons.search),
@@ -622,32 +625,98 @@ class _DoctorDashboardState extends State<DoctorDashboard>
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
+            onChanged: (value) {
+              // Implement search functionality
+              setState(() {
+                // Update filtered patients
+              });
+            },
           ),
-          SizedBox(height: 16),
-          Expanded(
-            child: ListView.builder(
-              itemCount: 10,
-              itemBuilder: (context, index) {
-                return Card(
-                  margin: EdgeInsets.symmetric(vertical: 4),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      child: Text('${index + 1}'),
-                    ),
-                    title: Text('Patient Name ${index + 1}'),
-                    subtitle: Text(
-                        'Last Visit: ${DateFormat('MMM dd, yyyy').format(DateTime.now())}'),
-                    trailing: IconButton(
-                      icon: Icon(Icons.medical_services),
-                      onPressed: () => _showPatientOptions(index),
-                    ),
-                    onTap: () => _navigateToPatientDetails(index),
-                  ),
-                );
-              },
-            ),
+        ),
+        Expanded(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('appointments')
+                .where('doctorId', isEqualTo: widget.doctor.uid)
+                .snapshots(),
+            builder: (context, appointmentSnapshot) {
+              if (appointmentSnapshot.hasError) {
+                return Center(
+                    child: Text('Error: ${appointmentSnapshot.error}'));
+              }
+
+              if (appointmentSnapshot.connectionState ==
+                  ConnectionState.waiting) {
+                return Center(child: CircularProgressIndicator());
+              }
+
+              // Get unique patient IDs
+              final patientIds = appointmentSnapshot.data!.docs
+                  .map((doc) => doc['patientId'] as String)
+                  .toSet()
+                  .toList();
+
+              return StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .where(FieldPath.documentId, whereIn: patientIds)
+                    .snapshots(),
+                builder: (context, patientSnapshot) {
+                  if (patientSnapshot.hasError) {
+                    return Center(
+                        child: Text('Error: ${patientSnapshot.error}'));
+                  }
+
+                  if (patientSnapshot.connectionState ==
+                      ConnectionState.waiting) {
+                    return Center(child: CircularProgressIndicator());
+                  }
+
+                  final patients = patientSnapshot.data!.docs
+                      .map((doc) => PatientModel.fromMap({
+                            ...doc.data() as Map<String, dynamic>,
+                            'uid': doc.id,
+                          }))
+                      .toList();
+
+                  if (patients.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.people_outline,
+                              size: 64, color: Colors.grey),
+                          SizedBox(height: 16),
+                          Text('No patients found'),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return ListView.builder(
+                    itemCount: patients.length,
+                    padding: EdgeInsets.all(16),
+                    itemBuilder: (context, index) {
+                      return PatientCard(
+                        patient: patients[index],
+                        onTap: () => _navigateToPatientDetails(patients[index]),
+                      );
+                    },
+                  );
+                },
+              );
+            },
           ),
-        ],
+        ),
+      ],
+    );
+  }
+
+  void _navigateToPatientDetails(PatientModel patient) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PatientDetailsScreen(patient: patient),
       ),
     );
   }
@@ -1147,10 +1216,6 @@ class _DoctorDashboardState extends State<DoctorDashboard>
         ),
       ),
     );
-  }
-
-  void _navigateToPatientDetails(int index) {
-    // Navigate to patient details page
   }
 
   @override
