@@ -9,6 +9,7 @@ import 'package:healthcare_ku/screens/dashboard/doctor/patient_details/add_clini
 import 'package:healthcare_ku/screens/dashboard/doctor/patient_details/add_prescription_screen.dart';
 import 'package:healthcare_ku/screens/dashboard/doctor/patient_details/doctor_health_metric_view.dart';
 import 'package:healthcare_ku/screens/dashboard/doctor/patient_details/doctor_scheduler_screen.dart';
+import 'package:healthcare_ku/screens/dashboard/doctor/patient_details/edit_patient_info_screen.dart';
 import 'package:healthcare_ku/screens/dashboard/patient/medical_records/add_medical_record_screen.dart';
 
 import 'package:intl/intl.dart';
@@ -85,11 +86,12 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildPatientHeader(),
-          SizedBox(height: 24),
-          _buildInfoSection('Personal Information'),
-          _buildInfoSection('Medical History'),
-          _buildInfoSection('Allergies'),
-          _buildInfoSection('Emergency Contact'),
+          SizedBox(height: 16),
+          _buildPersonalInformation(),
+          SizedBox(height: 16),
+          _buildMedicalInformation(),
+          SizedBox(height: 16),
+          _buildEmergencyContact(),
         ],
       ),
     );
@@ -103,49 +105,64 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen>
           children: [
             CircleAvatar(
               radius: 50,
-              backgroundImage: widget.patient.profileImageUrl != null
-                  ? NetworkImage(widget.patient.profileImageUrl!)
-                  : null,
-              child: widget.patient.profileImageUrl == null
-                  ? Text(
-                      widget.patient.name
-                          .split(' ')
-                          .take(2)
-                          .map((e) => e[0])
-                          .join('')
-                          .toUpperCase(),
-                      style: TextStyle(fontSize: 32),
+              backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+              child: widget.patient.profileImageUrl != null
+                  ? ClipOval(
+                      child: Image.network(
+                        widget.patient.profileImageUrl!,
+                        width: 100,
+                        height: 100,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Text(
+                          widget.patient.name.substring(0, 1).toUpperCase(),
+                          style: TextStyle(fontSize: 36),
+                        ),
+                      ),
                     )
-                  : null,
+                  : Text(
+                      widget.patient.name.substring(0, 1).toUpperCase(),
+                      style: TextStyle(fontSize: 36),
+                    ),
             ),
             SizedBox(height: 16),
             Text(
               widget.patient.name,
               style: Theme.of(context).textTheme.headlineSmall,
             ),
-            SizedBox(height: 8),
             Text(
-              'Blood Group: ${widget.patient.bloodGroup}',
-              style: Theme.of(context).textTheme.titleMedium,
+              'Patient ID: ${widget.patient.uid}',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey[600],
+                  ),
             ),
             SizedBox(height: 16),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _buildQuickAction(
-                  icon: Icons.note_add,
-                  label: 'Add Record',
-                  onTap: () => _addMedicalRecord(context),
+                  icon: Icons.edit,
+                  label: 'Edit Info',
+                  onTap: () => _editPatientInformation(),
                 ),
+                SizedBox(width: 24),
                 _buildQuickAction(
-                  icon: Icons.medication,
-                  label: 'Prescribe',
-                  onTap: () => _prescribeMedication(context),
+                  icon: Icons.history,
+                  label: 'History',
+                  onTap: () {
+                    if (_tabController.length > 3) {
+                      _tabController.animateTo(3); // Switch to history tab
+                    }
+                  },
                 ),
+                SizedBox(width: 24),
                 _buildQuickAction(
-                  icon: Icons.history_edu,
-                  label: 'Notes',
-                  onTap: () => _addClinicalNotes(context),
+                  icon: Icons.medical_services,
+                  label: 'Records',
+                  onTap: () {
+                    if (_tabController.length > 1) {
+                      _tabController.animateTo(1); // Switch to records tab
+                    }
+                  },
                 ),
               ],
             ),
@@ -155,6 +172,197 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen>
     );
   }
 
+  Widget _buildPersonalInformation() {
+    return Card(
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionHeader(
+              'Personal Information',
+              Icons.person,
+            ),
+            SizedBox(height: 16),
+            _buildInfoRow('Full Name', widget.patient.name),
+            _buildInfoRow('Email', widget.patient.email),
+            if (widget.patient.phoneNumber != null)
+              _buildInfoRow('Phone', widget.patient.phoneNumber!),
+            _buildInfoRow(
+              'Blood Group',
+              widget.patient.bloodGroup.isEmpty
+                  ? 'Not specified'
+                  : widget.patient.bloodGroup,
+            ),
+            _buildInfoRow(
+              'Status',
+              widget.patient.status.toUpperCase(),
+              valueColor: _getStatusColor(widget.patient.status),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMedicalInformation() {
+    return Card(
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionHeader(
+              'Medical Information',
+              Icons.medical_information,
+            ),
+            SizedBox(height: 16),
+            if (widget.patient.allergies.isNotEmpty) ...[
+              Text(
+                'Allergies',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[700],
+                ),
+              ),
+              SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: widget.patient.allergies.map((allergy) {
+                  return Chip(
+                    label: Text(allergy),
+                    backgroundColor: Colors.red[100],
+                    labelStyle: TextStyle(color: Colors.red[900]),
+                  );
+                }).toList(),
+              ),
+              SizedBox(height: 16),
+            ],
+            if (widget.patient.medicalHistory.isNotEmpty) ...[
+              Text(
+                'Medical History',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[700],
+                ),
+              ),
+              SizedBox(height: 8),
+              ...widget.patient.medicalHistory.map((history) {
+                return Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.circle, size: 8, color: Colors.grey[600]),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(history),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmergencyContact() {
+    if (widget.patient.emergencyContact.isEmpty) return SizedBox.shrink();
+
+    return Card(
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionHeader(
+              'Emergency Contact',
+              Icons.emergency,
+            ),
+            SizedBox(height: 16),
+            _buildInfoRow('Contact Number', widget.patient.emergencyContact),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, size: 24, color: Theme.of(context).primaryColor),
+        SizedBox(width: 8),
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value, {Color? valueColor}) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              label,
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                color: valueColor,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'active':
+        return Colors.green;
+      case 'inactive':
+        return Colors.grey;
+      case 'pending':
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  void _editPatientInformation() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditPatientInformationScreen(
+          patient: widget.patient,
+        ),
+      ),
+    ).then((_) {
+      // Refresh the data when returning from edit screen
+      setState(() {});
+    });
+  }
+
   Widget _buildQuickAction({
     required IconData icon,
     required String label,
@@ -162,15 +370,28 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen>
   }) {
     return InkWell(
       onTap: onTap,
-      child: Column(
-        children: [
-          CircleAvatar(
-            backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
-            child: Icon(icon, color: Theme.of(context).primaryColor),
-          ),
-          SizedBox(height: 4),
-          Text(label),
-        ],
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircleAvatar(
+              radius: 20,
+              backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+              child: Icon(
+                icon,
+                color: Theme.of(context).primaryColor,
+                size: 20,
+              ),
+            ),
+            SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -469,7 +690,14 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen>
                 title: Text('Edit Patient Information'),
                 onTap: () {
                   Navigator.pop(context);
-                  // Navigate to edit patient screen
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => EditPatientInformationScreen(
+                              patient: PatientModel(
+                                  uid: widget.patient.uid,
+                                  email: widget.patient.email,
+                                  name: widget.patient.name))));
                 },
               ),
               ListTile(

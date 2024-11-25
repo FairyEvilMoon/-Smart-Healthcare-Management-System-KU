@@ -1,13 +1,19 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:healthcare_ku/models/appointment_model.dart';
 import 'package:healthcare_ku/models/availability_slot_model.dart';
 import 'package:healthcare_ku/models/patient_model.dart';
 import 'package:healthcare_ku/screens/dashboard/doctor/availability/manage_availability_screen.dart';
+import 'package:healthcare_ku/screens/dashboard/doctor/patient_details/add_prescription_screen.dart';
+import 'package:healthcare_ku/screens/dashboard/doctor/patient_details/doctor_scheduler_screen.dart';
+import 'package:healthcare_ku/screens/dashboard/doctor/patient_details/edit_patient_info_screen.dart';
 import 'package:healthcare_ku/screens/dashboard/doctor/patient_details/patient_card.dart';
 import 'package:healthcare_ku/screens/dashboard/doctor/patient_details/patient_detail_screen.dart';
+import 'package:healthcare_ku/screens/dashboard/patient/medical_records/add_medical_record_screen.dart';
 import 'package:healthcare_ku/services/appointment_service.dart';
 import 'package:healthcare_ku/services/availability_service.dart';
+import 'package:healthcare_ku/services/doctor_task_service.dart';
 import 'package:healthcare_ku/widgets/data_selector.dart';
 import 'package:intl/intl.dart';
 import '../../../models/doctor_model.dart';
@@ -556,58 +562,178 @@ class _DoctorDashboardState extends State<DoctorDashboard>
   }
 
   Widget _buildPendingTasks() {
+    final taskService = DoctorTaskService();
+
     return Card(
-      elevation: 2,
-      child: Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Pending Tasks',
-              style: Theme.of(context).textTheme.titleLarge,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.all(16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Pending Tasks',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                StreamBuilder<Map<String, int>>(
+                  stream: taskService.getPendingTasksCounts(widget.doctor.uid),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) return SizedBox.shrink();
+
+                    final counts = snapshot.data!;
+                    final totalTasks = counts.values.reduce((a, b) => a + b);
+
+                    return Chip(
+                      label: Text(
+                        'Total: $totalTasks',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      backgroundColor:
+                          totalTasks > 0 ? Colors.red : Colors.green,
+                    );
+                  },
+                ),
+              ],
             ),
-            SizedBox(height: 16),
-            _buildTaskItem(
-              'Review Medical Reports',
-              '3 reports pending',
-              Icons.description,
-              Colors.orange,
-            ),
-            _buildTaskItem(
-              'Update Patient Records',
-              '5 updates needed',
-              Icons.update,
-              Colors.blue,
-            ),
-            _buildTaskItem(
-              'Prescription Renewals',
-              '2 pending renewals',
-              Icons.medical_services,
-              Colors.green,
-            ),
-          ],
-        ),
+          ),
+          StreamBuilder<List<Map<String, dynamic>>>(
+            stream: taskService.getPendingTasks(widget.doctor.uid),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              }
+
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Center(child: CircularProgressIndicator());
+              }
+
+              final tasks = snapshot.data ?? [];
+
+              if (tasks.isEmpty) {
+                return Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(32),
+                    child: Column(
+                      children: [
+                        Icon(Icons.task_alt, size: 48, color: Colors.green),
+                        SizedBox(height: 16),
+                        Text('All tasks completed!'),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              return ListView.builder(
+                shrinkWrap: true,
+                physics: NeverScrollableScrollPhysics(),
+                itemCount: tasks.length,
+                itemBuilder: (context, index) {
+                  final task = tasks[index];
+                  return _buildTaskItem(task);
+                },
+              );
+            },
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildTaskItem(
-      String title, String subtitle, IconData icon, Color color) {
+  Widget _buildTaskItem(Map<String, dynamic> task) {
+    IconData icon;
+    Color color;
+    String title;
+    VoidCallback onTap;
+
+    switch (task['type']) {
+      case 'medical_record':
+        icon = Icons.medical_information;
+        color = Colors.blue;
+        title = 'Add Medical Record';
+        onTap = () => _navigateToPatientMedicalRecords(task);
+        break;
+      case 'prescription':
+        icon = Icons.medical_services;
+        color = Colors.green;
+        title = 'Add Prescription';
+        onTap = () => _navigateToPatientPrescription(task);
+        break;
+      case 'patient_info':
+        icon = Icons.person;
+        color = Colors.orange;
+        title = 'Complete Patient Information';
+        onTap = () => _navigateToPatientInformation(task);
+        break;
+      default:
+        icon = Icons.task;
+        color = Colors.grey;
+        title = 'Unknown Task';
+        onTap = () {};
+    }
+
     return Card(
-      elevation: 1,
-      margin: EdgeInsets.symmetric(vertical: 4),
+      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: color.withOpacity(0.1),
           child: Icon(icon, color: color),
         ),
         title: Text(title),
-        subtitle: Text(subtitle),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(task['patientName']),
+            Text(
+              DateFormat('MMM dd, yyyy HH:mm')
+                  .format((task['appointmentTime'] as Timestamp).toDate()),
+              style: TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
         trailing: Icon(Icons.chevron_right),
-        onTap: () {
-          // Handle task action
-        },
+        onTap: onTap,
+      ),
+    );
+  }
+
+  void _navigateToPatientMedicalRecords(Map<String, dynamic> task) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddMedicalRecordScreen(
+          patientId: task['patientId'],
+        ),
+      ),
+    );
+  }
+
+  void _navigateToPatientPrescription(Map<String, dynamic> task) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddPrescriptionScreen(
+          patientId: task['patientId'],
+          patientName: task['patientName'],
+        ),
+      ),
+    );
+  }
+
+  void _navigateToPatientInformation(Map<String, dynamic> task) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditPatientInformationScreen(
+          patient: PatientModel(
+            uid: task['patientId'],
+            name: task['patientName'],
+            email: '', // You'll need to fetch this
+            // Add other required fields
+          ),
+        ),
       ),
     );
   }
@@ -1058,23 +1184,14 @@ class _DoctorDashboardState extends State<DoctorDashboard>
             title: Text('Add Appointment'),
             onTap: () {
               Navigator.pop(context);
-              Navigator.pushNamed(context, '/add-appointment');
-            },
-          ),
-          ListTile(
-            leading: Icon(Icons.person_add),
-            title: Text('Add New Patient'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(context, '/add-patient');
-            },
-          ),
-          ListTile(
-            leading: Icon(Icons.schedule),
-            title: Text('Update Schedule'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(context, '/update-schedule');
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => DoctorSchedulePatientScreen(
+                    doctorId: FirebaseAuth.instance.currentUser!.uid,
+                  ),
+                ),
+              );
             },
           ),
           ListTile(
