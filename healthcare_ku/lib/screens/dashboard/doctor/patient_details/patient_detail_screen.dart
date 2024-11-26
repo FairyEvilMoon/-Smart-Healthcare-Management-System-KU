@@ -164,6 +164,12 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen>
                     }
                   },
                 ),
+                SizedBox(width: 24),
+                _buildQuickAction(
+                  icon: Icons.medication,
+                  label: 'Prescription',
+                  onTap: () => _prescribeMedication(context),
+                ),
               ],
             ),
           ],
