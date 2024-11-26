@@ -114,12 +114,6 @@ class _DoctorDashboardState extends State<DoctorDashboard>
           ],
         ),
         actions: [
-          IconButton(
-            icon: Icon(Icons.notifications),
-            onPressed: () {
-              Navigator.pushNamed(context, '/notifications');
-            },
-          ),
           PopupMenuButton<String>(
             icon: Icon(Icons.person),
             onSelected: (value) {

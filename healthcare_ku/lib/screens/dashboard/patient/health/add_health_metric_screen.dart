@@ -4,6 +4,13 @@ import '../../../../services/firebase_service.dart';
 import 'package:healthcare_ku/models/health_metric_model.dart';
 
 class AddHealthMetricScreen extends StatefulWidget {
+  final String patientId; // Add patient ID parameter
+
+  const AddHealthMetricScreen({
+    Key? key,
+    required this.patientId,
+  }) : super(key: key);
+
   @override
   _AddHealthMetricScreenState createState() => _AddHealthMetricScreenState();
 }
@@ -11,6 +18,7 @@ class AddHealthMetricScreen extends StatefulWidget {
 class _AddHealthMetricScreenState extends State<AddHealthMetricScreen> {
   final _formKey = GlobalKey<FormState>();
   final _firebaseService = FirebaseService();
+  bool _isLoading = false;
 
   double? heartRate;
   double? systolicPressure;
@@ -23,11 +31,21 @@ class _AddHealthMetricScreenState extends State<AddHealthMetricScreen> {
     return null;
   }
 
-  void _submitForm() async {
-    if (_formKey.currentState!.validate()) {
+  Future<void> _submitForm() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
       _formKey.currentState!.save();
 
       final metric = HealthMetric(
+        patientId: widget.patientId,
+        doctorId: FirebaseAuth.instance.currentUser!.uid,
         heartRate: heartRate!,
         systolicPressure: systolicPressure!,
         diastolicPressure: diastolicPressure!,
@@ -35,13 +53,25 @@ class _AddHealthMetricScreenState extends State<AddHealthMetricScreen> {
         timestamp: DateTime.now(),
       );
 
-      try {
-        await _firebaseService.addHealthMetric(
-            FirebaseAuth.instance.currentUser!.uid, metric);
+      await _firebaseService.addHealthMetric(widget.patientId, metric);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Health metrics saved successfully')),
+        );
         Navigator.pop(context);
-      } catch (e) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error saving metrics: $e')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving metrics: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
@@ -49,14 +79,14 @@ class _AddHealthMetricScreenState extends State<AddHealthMetricScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Add Health Metrics')),
+      appBar: AppBar(title: const Text('Add Health Metrics')),
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: EdgeInsets.all(16),
+          padding: const EdgeInsets.all(16),
           children: [
             TextFormField(
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                   labelText: 'Heart Rate',
                   helperText: 'Beats per minute',
                   suffixText: 'bpm'),
@@ -64,9 +94,9 @@ class _AddHealthMetricScreenState extends State<AddHealthMetricScreen> {
               validator: _validateNumber,
               onSaved: (value) => heartRate = double.parse(value!),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             TextFormField(
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                   labelText: 'Systolic Pressure',
                   helperText: 'Upper number',
                   suffixText: 'mmHg'),
@@ -74,9 +104,9 @@ class _AddHealthMetricScreenState extends State<AddHealthMetricScreen> {
               validator: _validateNumber,
               onSaved: (value) => systolicPressure = double.parse(value!),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             TextFormField(
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                   labelText: 'Diastolic Pressure',
                   helperText: 'Lower number',
                   suffixText: 'mmHg'),
@@ -84,18 +114,20 @@ class _AddHealthMetricScreenState extends State<AddHealthMetricScreen> {
               validator: _validateNumber,
               onSaved: (value) => diastolicPressure = double.parse(value!),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             TextFormField(
               decoration:
-                  InputDecoration(labelText: 'Weight', suffixText: 'kg'),
+                  const InputDecoration(labelText: 'Weight', suffixText: 'kg'),
               keyboardType: TextInputType.number,
               validator: _validateNumber,
               onSaved: (value) => weight = double.parse(value!),
             ),
-            SizedBox(height: 24),
+            const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: _submitForm,
-              child: Text('Save Metrics'),
+              onPressed: _isLoading ? null : _submitForm,
+              child: _isLoading
+                  ? const CircularProgressIndicator()
+                  : const Text('Save Metrics'),
             ),
           ],
         ),

@@ -95,12 +95,6 @@ class _PatientDashboardState extends State<PatientDashboard> {
         automaticallyImplyLeading: false,
         title: Text('Patient Dashboard'),
         actions: [
-          IconButton(
-            icon: Icon(Icons.notifications),
-            onPressed: () {
-              Navigator.pushNamed(context, '/notifications');
-            },
-          ),
           PopupMenuButton<String>(
             icon: Icon(Icons.person),
             onSelected: (value) {

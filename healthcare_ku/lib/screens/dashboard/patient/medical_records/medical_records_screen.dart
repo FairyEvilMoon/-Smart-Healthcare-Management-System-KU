@@ -62,19 +62,6 @@ class _ViewMedicalRecordsScreenState extends State<ViewMedicalRecordsScreen> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => AddMedicalRecordScreen(
-                patientId: widget.patientId,
-              ),
-            ),
-          );
-        },
-        child: const Icon(Icons.add),
-      ),
     );
   }
 
