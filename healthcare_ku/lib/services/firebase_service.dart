@@ -4,8 +4,7 @@ import 'package:healthcare_ku/models/admin_model.dart';
 import 'package:healthcare_ku/models/doctor_model.dart';
 import 'package:healthcare_ku/models/patient_model.dart';
 import '../models/user_model.dart';
-import '../models/appointment_model.dart';
-import '../models/health_metric.dart';
+import 'package:healthcare_ku/models/health_metric_model.dart';
 
 class FirebaseService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -22,6 +21,15 @@ class FirebaseService {
     } catch (e) {
       print('Sign in error: $e');
       return null;
+    }
+  }
+
+  Future<void> signOut() async {
+    try {
+      await _auth.signOut();
+    } catch (e) {
+      print('Error signing out: $e');
+      throw e;
     }
   }
 
@@ -69,6 +77,7 @@ class FirebaseService {
     required String email,
     required String role,
     String? phoneNumber,
+    required Map<String, dynamic> additionalData,
   }) async {
     try {
       final userData = {
@@ -92,9 +101,9 @@ class FirebaseService {
       } else if (role == 'doctor') {
         // Additional doctor-specific data
         userData.addAll({
-          'specialization': '',
-          'licenseNumber': '',
-          'availability': [],
+          'specialization': additionalData['specialization'] ?? '',
+          'licenseNumber': additionalData['licenseNumber'] ?? '',
+          'availability': additionalData['availability'] ?? [],
           'rating': 0.0,
           'numberOfReviews': 0,
         });
@@ -116,6 +125,8 @@ class FirebaseService {
           'appointments': [],
           'patients': [],
           'schedule': {},
+          'specialization': additionalData['specialization'] ?? '',
+          'licenseNumber': additionalData['licenseNumber'] ?? '',
         });
       }
     } catch (e) {
@@ -123,37 +134,6 @@ class FirebaseService {
       throw e;
     }
   }
-
-  // Appointments
-  // Future<List<AppointmentModel>> getDoctorAppointments(String doctorId) async {
-  //   try {
-  //     final QuerySnapshot snapshot = await _firestore
-  //         .collection('appointments')
-  //         .where('doctorId', isEqualTo: doctorId)
-  //         .get();
-
-  //     return snapshot.docs
-  //         .map((doc) => AppointmentModel.fromMap(
-  //             {...doc.data() as Map<String, dynamic>, 'id': doc.id}))
-  //         .toList();
-  //   } catch (e) {
-  //     print('Get doctor appointments error: $e');
-  //     return [];
-  //   }
-  // }
-
-  // Future<bool> createAppointment(AppointmentModel appointment) async {
-  //   try {
-  //     await _firestore
-  //         .collection('appointments')
-  //         .doc(appointment.id)
-  //         .set(appointment.toMap());
-  //     return true;
-  //   } catch (e) {
-  //     print('Create appointment error: $e');
-  //     return false;
-  //   }
-  // }
 
   // Health Metrics
   Future<void> addHealthMetric(String patientId, HealthMetric metric) async {

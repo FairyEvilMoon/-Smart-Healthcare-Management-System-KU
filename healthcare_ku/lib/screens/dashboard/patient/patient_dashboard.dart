@@ -2,7 +2,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:healthcare_ku/models/appointment_model.dart';
-import 'package:healthcare_ku/models/health_metric.dart';
+import 'package:healthcare_ku/models/health_metric_model.dart';
 import 'package:healthcare_ku/models/medical_record_model.dart';
 import 'package:healthcare_ku/models/prescription_model.dart';
 import 'package:healthcare_ku/screens/dashboard/patient/appointments/book_appointment_screen.dart';
@@ -31,6 +31,63 @@ class PatientDashboard extends StatefulWidget {
 class _PatientDashboardState extends State<PatientDashboard> {
   final FirebaseService _firebaseService = FirebaseService();
 
+  Future<void> _handleSignOut() async {
+    try {
+      // Show confirmation dialog
+      final shouldSignOut = await showDialog<bool>(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('Sign Out'),
+            content: Text('Are you sure you want to sign out?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: Text(
+                  'Sign Out',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (shouldSignOut == true) {
+        // Show loading dialog
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return Center(
+              child: CircularProgressIndicator(),
+            );
+          },
+        );
+
+        await _firebaseService.signOut();
+
+        // Pop loading dialog and navigate to login
+        Navigator.of(context).pop();
+        Navigator.of(context)
+            .pushNamedAndRemoveUntil('/login', (route) => false);
+      }
+    } catch (e) {
+      // Handle any errors
+      Navigator.of(context).pop(); // Pop loading dialog if it's showing
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error signing out. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -38,18 +95,45 @@ class _PatientDashboardState extends State<PatientDashboard> {
         automaticallyImplyLeading: false,
         title: Text('Patient Dashboard'),
         actions: [
-          IconButton(
-            icon: Icon(Icons.notifications),
-            onPressed: () {
-              Navigator.pushNamed(context, '/notifications');
-            },
-          ),
-          IconButton(
+          PopupMenuButton<String>(
             icon: Icon(Icons.person),
-            onPressed: () {
-              Navigator.pushNamed(context, '/profile');
+            onSelected: (value) {
+              switch (value) {
+                case 'profile':
+                  Navigator.pushNamed(context, '/profile');
+                  break;
+                case 'signout':
+                  _handleSignOut();
+                  break;
+              }
             },
+            itemBuilder: (BuildContext context) => [
+              PopupMenuItem<String>(
+                value: 'profile',
+                child: Row(
+                  children: [
+                    Icon(Icons.person_outline, color: Colors.black),
+                    SizedBox(width: 8),
+                    Text('Profile'),
+                  ],
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'signout',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text(
+                      'Sign Out',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
+          SizedBox(width: 8),
         ],
       ),
       body: RefreshIndicator(
@@ -304,7 +388,7 @@ class _PatientDashboardState extends State<PatientDashboard> {
     return Card(
       elevation: 2,
       child: Padding(
-        padding: EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -316,7 +400,7 @@ class _PatientDashboardState extends State<PatientDashboard> {
                   'Upcoming Appointments',
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
-                TextButton(
+                TextButton.icon(
                   onPressed: () {
                     Navigator.push(
                       context,
@@ -327,34 +411,76 @@ class _PatientDashboardState extends State<PatientDashboard> {
                       ),
                     );
                   },
-                  child: Text('View All'),
+                  icon: const Icon(Icons.arrow_forward),
+                  label: const Text('View All'),
                 ),
               ],
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 12),
             StreamBuilder<List<AppointmentModel>>(
               stream: AppointmentService()
                   .getUpcomingAppointments(widget.patient.uid),
               builder: (context, snapshot) {
-                print("Patient ID: ${widget.patient.uid}");
-                print("Data: ${snapshot.data}");
-                print("Error: ${snapshot.error}");
-
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Center(child: CircularProgressIndicator());
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
                 }
 
                 if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      child: Column(
+                        children: [
+                          const Icon(Icons.error_outline, color: Colors.red),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Error: ${snapshot.error}',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.red),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
                 }
 
                 final appointments = snapshot.data ?? [];
 
                 if (appointments.isEmpty) {
                   return Padding(
-                    padding: EdgeInsets.symmetric(vertical: 20),
+                    padding: const EdgeInsets.symmetric(vertical: 20),
                     child: Center(
-                      child: Text('No upcoming appointments'),
+                      child: Column(
+                        children: [
+                          const Icon(
+                            Icons.calendar_today,
+                            size: 48,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'No upcoming appointments',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                          const SizedBox(height: 12),
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.pushNamed(
+                                context,
+                                '/book-appointment',
+                                arguments: widget.patient.uid,
+                              );
+                            },
+                            icon: const Icon(Icons.add),
+                            label: const Text('Book Appointment'),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 }
@@ -364,27 +490,60 @@ class _PatientDashboardState extends State<PatientDashboard> {
                       .take(2)
                       .map((appointment) => Card(
                             elevation: 1,
-                            margin: EdgeInsets.symmetric(vertical: 4),
+                            margin: const EdgeInsets.symmetric(vertical: 4),
                             child: ListTile(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        UpcomingAppointmentsScreen(
+                                      patientId: widget.patient.uid,
+                                    ),
+                                  ),
+                                );
+                              },
                               leading: CircleAvatar(
-                                child: Icon(Icons.medical_services),
+                                backgroundColor: Theme.of(context)
+                                    .primaryColor
+                                    .withOpacity(0.1),
+                                child: const Icon(Icons.medical_services),
                               ),
-                              title: Text(appointment.doctorName),
-                              subtitle: Text(appointment.purpose),
-                              trailing: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.end,
+                              title: Row(
                                 children: [
+                                  Expanded(
+                                    child: Text(
+                                      'Dr. ${appointment.doctorName}',
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
                                   Text(
                                     DateFormat('MMM d')
                                         .format(appointment.dateTime),
-                                    style:
-                                        TextStyle(fontWeight: FontWeight.bold),
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              subtitle: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      appointment.purpose,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
                                   Text(
                                     DateFormat('h:mm a')
                                         .format(appointment.dateTime),
-                                    style: TextStyle(color: Colors.grey),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
                                   ),
                                 ],
                               ),

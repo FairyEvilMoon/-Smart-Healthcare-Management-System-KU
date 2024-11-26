@@ -95,4 +95,30 @@ class AppointmentService {
     return _firestore.collection('appointments').doc(appointmentId).update(
         {'status': AppointmentStatus.cancelled.toString().split('.').last});
   }
+
+  Stream<List<AppointmentModel>> getDoctorDailySchedule(
+      String doctorId, DateTime date) {
+    final startOfDay = DateTime(date.year, date.month, date.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+
+    return _firestore
+        .collection('appointments')
+        .where('doctorId', isEqualTo: doctorId)
+        .where('dateTime',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+        .where('dateTime', isLessThan: Timestamp.fromDate(endOfDay))
+        .orderBy('dateTime')
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => AppointmentModel.fromFirestore(doc))
+            .toList());
+  }
+
+  // Add method to update appointment status
+  Future<void> updateAppointmentStatus(
+      String appointmentId, AppointmentStatus status) async {
+    await _firestore.collection('appointments').doc(appointmentId).update({
+      'status': status.toString().split('.').last,
+    });
+  }
 }
